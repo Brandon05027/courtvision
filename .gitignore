@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+.pytest_cache/
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated CourtVision files
+sample_videos/*
+!sample_videos/.gitkeep
+
+backend/uploads/
+backend/output/
+backend/frames/
+
+# ML artifacts
+ml/models/*.pt
+ml/models/*.onnx
