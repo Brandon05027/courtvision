@@ -1,5 +1,9 @@
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Arc, Circle, Rectangle #it will connect the points of the player's movement tgt
 
