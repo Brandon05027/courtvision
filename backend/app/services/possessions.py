@@ -47,7 +47,7 @@ def create_possession(
         "manually_segmented": True,
     }
 
-def calculate_pairwise_spacing(
+def calculate_pairwise_spacing( #See how spread out are the offensive players
     positions: list[dict],
 ) -> float:
     if len(positions) < 2:
@@ -140,7 +140,7 @@ def calculate_team_spacing_at_time(
         "average_spacing_feet": spacing,
     }
 
-def calculate_possession_spacing(
+def calculate_possession_spacing( #tell where the players each second in one possessions
     tracks: list[dict],
     team: str,
     start_time: float,
