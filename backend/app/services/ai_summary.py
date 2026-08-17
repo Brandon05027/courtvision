@@ -16,12 +16,6 @@ class PossessionSummary(BaseModel):
     evidence_keys: list[str]
 
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url="https://api.chatanywhere.org/v1",
-)
-
-
 ALLOWED_EVIDENCE_KEYS = {
     "duration_seconds",
     "result",
@@ -50,103 +44,14 @@ def validate_evidence_keys(
 def generate_possession_summary(
     possession_analysis: dict,
 ) -> PossessionSummary:
-    facts = {
-        "possession_id": possession_analysis[
-            "possession_id"
-        ],
-        "team": possession_analysis["team"],
-        "duration_seconds": possession_analysis[
-            "duration_seconds"
-        ],
-        "result": possession_analysis["result"],
-        "pass_count": possession_analysis[
-            "pass_count"
-        ],
-        "average_spacing_feet": possession_analysis[
-            "spacing"
-        ]["average_spacing_feet"],
-        "minimum_spacing_feet": possession_analysis[
-            "spacing"
-        ]["minimum_spacing_feet"],
-        "maximum_spacing_feet": possession_analysis[
-            "spacing"
-        ]["maximum_spacing_feet"],
-    }
-
-    response = client.responses.parse(
-        model="gpt-5.6",
-        input=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are CourtVision's basketball analysis assistant. "
-                        "Explain only facts provided by the user. "
-                        "Do not invent player actions, defensive rotations, "
-                        "open shots, drives, passes, or events. "
-                        "Do not infer causes from outcomes. "
-                        "A missed shot alone does not prove poor execution, "
-                        "poor shot selection, or bad decision-making. "
-                        "Only make recommendations directly supported by "
-                        "the provided metrics. "
-                        "Return ONLY valid JSON with exactly these fields: "
-                        "summary, positive, improvement, evidence_keys. "
-                        "The evidence_keys field must be a JSON array. "
-                        "Only use evidence keys from this exact list: "
-                        "duration_seconds, result, pass_count, "
-                        "average_spacing_feet, minimum_spacing_feet, "
-                        "maximum_spacing_feet. "
-                        "Do NOT include possession_id or team in evidence_keys."
-                    ),
-                },
-            {
-                "role": "user",
-                "content": json.dumps(facts),
-            },
-        ],
-        text_format=PossessionSummary,
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url=os.getenv(
+            "OPENAI_BASE_URL",
+            "https://api.chatanywhere.org/v1",
+        ),
     )
 
-    summary = response.output_parsed
-
-    validate_evidence_keys(
-        summary.evidence_keys
-    )
-
-    return summary
-
-
-def create_fallback_summary(
-    possession_analysis: dict,
-) -> PossessionSummary:
-    spacing = possession_analysis["spacing"]
-
-    return PossessionSummary(
-        summary=(
-            f"{possession_analysis['team']} had a "
-            f"{possession_analysis['duration_seconds']}-second "
-            f"possession ending in "
-            f"{possession_analysis['result']}."
-        ),
-        positive=(
-            f"Average offensive spacing was "
-            f"{spacing['average_spacing_feet']} feet."
-        ),
-        improvement=(
-            f"Minimum spacing reached "
-            f"{spacing['minimum_spacing_feet']} feet."
-        ),
-        evidence_keys=[
-            "duration_seconds",
-            "result",
-            "average_spacing_feet",
-            "minimum_spacing_feet",
-        ],
-    )
-
-
-def generate_possession_summary(
-    possession_analysis: dict,
-) -> PossessionSummary:
     facts = {
         "possession_id": possession_analysis[
             "possession_id"
@@ -180,6 +85,11 @@ def generate_possession_summary(
                     "Explain only facts provided by the user. "
                     "Do not invent player actions, defensive rotations, "
                     "open shots, drives, passes, or events. "
+                    "Do not infer causes from outcomes. "
+                    "A missed shot alone does not prove poor execution, "
+                    "poor shot selection, or bad decision-making. "
+                    "Only make recommendations directly supported by "
+                    "the provided metrics. "
                     "Return ONLY valid JSON with exactly these fields: "
                     "summary, positive, improvement, evidence_keys. "
                     "The evidence_keys field must be a JSON array. "
@@ -220,10 +130,34 @@ def generate_possession_summary(
     return summary
 
 
-def possession_summary_to_dict(
-    summary: PossessionSummary,
-) -> dict:
-    return summary.model_dump()
+def create_fallback_summary(
+    possession_analysis: dict,
+) -> PossessionSummary:
+    spacing = possession_analysis["spacing"]
+
+    return PossessionSummary(
+        summary=(
+            f"{possession_analysis['team']} had a "
+            f"{possession_analysis['duration_seconds']}-second "
+            f"possession ending in "
+            f"{possession_analysis['result']}."
+        ),
+        positive=(
+            f"Average offensive spacing was "
+            f"{spacing['average_spacing_feet']} feet."
+        ),
+        improvement=(
+            f"Minimum spacing reached "
+            f"{spacing['minimum_spacing_feet']} feet."
+        ),
+        evidence_keys=[
+            "duration_seconds",
+            "result",
+            "average_spacing_feet",
+            "minimum_spacing_feet",
+        ],
+    )
+
 
 def generate_possession_summary_safe(
     possession_analysis: dict,
