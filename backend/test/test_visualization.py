@@ -1,4 +1,5 @@
 from pathlib import Path
+from app.services.visualization import save_shot_chart
 
 from app.services.visualization import (
     filter_large_position_jumps,
@@ -6,7 +7,33 @@ from app.services.visualization import (
     save_player_movement_path,
 )
 
+def test_save_shot_chart(tmp_path):
+    shots = [
+        {
+            "court_position": {
+                "x": 25.0,
+                "y": 10.0,
+            },
+            "result": "made",
+        },
+        {
+            "court_position": {
+                "x": 40.0,
+                "y": 20.0,
+            },
+            "result": "missed",
+        },
+    ]
 
+    output = tmp_path / "shot_chart.png"
+
+    result = save_shot_chart(
+        shots,
+        str(output),
+    )
+
+    assert Path(result).exists()
+    
 def test_filter_large_position_jumps():
     tracks = [
         {

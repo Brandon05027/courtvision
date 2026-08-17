@@ -234,3 +234,50 @@ def filter_large_position_jumps(
             filtered.append(track)
 
     return filtered
+
+def save_shot_chart(
+    shots: list[dict],
+    output_path: str,
+) -> str:
+    if not shots:
+        raise ValueError("Shot list cannot be empty.")
+
+    figure, ax = plt.subplots(
+        figsize=(8, 7),
+    )
+
+    draw_half_court(ax)
+
+    for shot in shots:
+        position = shot["court_position"]
+
+        marker = (
+            "o"
+            if shot["result"] == "made"
+            else "x"
+        )
+
+        ax.scatter(
+            position["x"],
+            position["y"],
+            marker=marker,
+            s=80,
+        )
+
+    ax.set_title("CourtVision Shot Chart")
+
+    output = Path(output_path)
+
+    output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    figure.savefig(
+        output,
+        bbox_inches="tight",
+    )
+
+    plt.close(figure)
+
+    return str(output)
