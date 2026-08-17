@@ -76,18 +76,28 @@ def generate_possession_summary(
     response = client.responses.parse(
         model="gpt-5.6",
         input=[
-            {
-                "role": "system",
-                "content": (
-                    "You are CourtVision's basketball analysis "
-                    "assistant. Explain only the facts provided. "
-                    "Do not invent player actions, defensive "
-                    "rotations, open shots, drives, passes, or "
-                    "events that are not explicitly present. "
-                    "Use evidence_keys only from the factual "
-                    "fields provided."
-                ),
-            },
+                {
+                    "role": "system",
+                    "content": (
+                        "You are CourtVision's basketball analysis assistant. "
+                        "Explain only facts provided by the user. "
+                        "Do not invent player actions, defensive rotations, "
+                        "open shots, drives, passes, or events. "
+                        "Do not infer causes from outcomes. "
+                        "A missed shot alone does not prove poor execution, "
+                        "poor shot selection, or bad decision-making. "
+                        "Only make recommendations directly supported by "
+                        "the provided metrics. "
+                        "Return ONLY valid JSON with exactly these fields: "
+                        "summary, positive, improvement, evidence_keys. "
+                        "The evidence_keys field must be a JSON array. "
+                        "Only use evidence keys from this exact list: "
+                        "duration_seconds, result, pass_count, "
+                        "average_spacing_feet, minimum_spacing_feet, "
+                        "maximum_spacing_feet. "
+                        "Do NOT include possession_id or team in evidence_keys."
+                    ),
+                },
             {
                 "role": "user",
                 "content": json.dumps(facts),
