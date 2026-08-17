@@ -4,9 +4,9 @@ from app.services.evaluation import (
     calculate_detection_precision,
     calculate_detection_recall,
     calculate_identity_switch_rate,
+    calculate_labeled_tracking_coverage,
     calculate_position_error,
     calculate_processing_fps,
-    calculate_tracking_coverage,
 )
 
 
@@ -29,7 +29,7 @@ def test_detection_recall():
 
 
 def test_tracking_coverage():
-    result = calculate_tracking_coverage(
+    result = calculate_labeled_tracking_coverage(
         observed_frames=90,
         expected_frames=100,
     )

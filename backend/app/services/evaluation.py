@@ -158,7 +158,7 @@ def build_evaluation_report(
             4,
         ),
         "tracking_coverage": round(
-            calculate_tracking_coverage(
+            calculate_labeled_tracking_coverage(
                 observed_frames,
                 expected_frames,
             ),
