@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.possessions import router as possessions_router
 
-app = FastAPI(
-    title="CourtVision API",
-    version="0.1.0",
+app = FastAPI()
+app.include_router(
+    possessions_router
 )
 
 app.add_middleware(

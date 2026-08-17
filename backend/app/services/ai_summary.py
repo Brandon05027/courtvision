@@ -214,3 +214,21 @@ def possession_summary_to_dict(
     summary: PossessionSummary,
 ) -> dict:
     return summary.model_dump()
+
+def generate_possession_summary_safe(
+    possession_analysis: dict,
+) -> PossessionSummary:
+    try:
+        return generate_possession_summary(
+            possession_analysis
+        )
+    except Exception:
+        return create_fallback_summary(
+            possession_analysis
+        )
+
+
+def possession_summary_to_dict(
+    summary: PossessionSummary,
+) -> dict:
+    return summary.model_dump()
