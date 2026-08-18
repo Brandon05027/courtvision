@@ -52,17 +52,10 @@ type PossessionReview = {
 
 
 export default function Home() {
-  // =========================
-  // General
-  // =========================
 
   const [error, setError] =
     useState<string | null>(null);
 
-
-  // =========================
-  // Video upload
-  // =========================
 
   const videoInputRef =
     useRef<HTMLInputElement | null>(
@@ -82,10 +75,6 @@ export default function Home() {
     null
   );
 
-
-  // =========================
-  // Processing
-  // =========================
 
   const [
     processingJobId,
@@ -135,10 +124,6 @@ export default function Home() {
   );
 
 
-  // =========================
-  // Calibration
-  // =========================
-
   const calibrationImageRef =
     useRef<HTMLImageElement | null>(
       null
@@ -176,9 +161,6 @@ export default function Home() {
   );
 
 
-  // =========================
-  // Analytics
-  // =========================
 
   const [
     analyticsLoading,
@@ -193,9 +175,6 @@ export default function Home() {
   );
 
 
-  // =========================
-  // Possession review
-  // =========================
 
   const [
     possessionStart,
@@ -230,10 +209,6 @@ export default function Home() {
   ] = useState(false);
 
 
-  // =========================
-  // Temporary possession demo
-  // =========================
-
   const [
     analysis,
     setAnalysis,
@@ -244,11 +219,6 @@ export default function Home() {
 
   const [loading, setLoading] =
     useState(false);
-
-
-  // =========================
-  // Poll processing status
-  // =========================
 
   useEffect(() => {
     if (!processingJobId) {
@@ -753,11 +723,6 @@ export default function Home() {
       setAnalyticsLoading(false);
     }
   }
-
-
-  // =========================
-  // Review real possession
-  // =========================
 
   async function reviewPossession() {
     if (!processingJobId) {

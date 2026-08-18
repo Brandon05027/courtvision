@@ -14,7 +14,7 @@ class PlayerDetector:
     def detect_players(
         self,
         image_path: str,
-        confidence_threshold: float = 0.4,
+        confidence_threshold: float = 0.4, #ignore predictions which confidence is under 40%
     ) -> list[dict]:
         path = Path(image_path)
 
@@ -69,7 +69,7 @@ class PlayerDetector:
         self,
         image_path: str,
         output_path: str,
-        confidence_threshold: float = 0.4,
+        confidence_threshold: float = 0.4, #ignore predictions which confidence is under 40%
     ) -> str:
         detections = self.detect_players(
             image_path,
