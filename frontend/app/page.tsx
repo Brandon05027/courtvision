@@ -38,6 +38,19 @@ type AnalyticsData = {
 };
 
 
+type PossessionReview = {
+  possession_id: string;
+  start_time: number;
+  end_time: number;
+  duration_seconds: number;
+  result: string;
+  pass_count: number;
+  average_spacing_feet: number | null;
+  minimum_spacing_feet: number | null;
+  maximum_spacing_feet: number | null;
+};
+
+
 export default function Home() {
   // =========================
   // General
@@ -181,6 +194,43 @@ export default function Home() {
 
 
   // =========================
+  // Possession review
+  // =========================
+
+  const [
+    possessionStart,
+    setPossessionStart,
+  ] = useState("0");
+
+  const [
+    possessionEnd,
+    setPossessionEnd,
+  ] = useState("5");
+
+  const [
+    possessionResult,
+    setPossessionResult,
+  ] = useState("missed_shot");
+
+  const [
+    possessionPassCount,
+    setPossessionPassCount,
+  ] = useState("0");
+
+  const [
+    possessionReview,
+    setPossessionReview,
+  ] = useState<PossessionReview | null>(
+    null
+  );
+
+  const [
+    reviewingPossession,
+    setReviewingPossession,
+  ] = useState(false);
+
+
+  // =========================
   // Temporary possession demo
   // =========================
 
@@ -306,6 +356,7 @@ export default function Home() {
     setInsideCourtCount(null);
 
     setAnalyticsData(null);
+    setPossessionReview(null);
     setAnalysis(null);
 
     try {
@@ -705,10 +756,130 @@ export default function Home() {
 
 
   // =========================
-  // Temporary possession demo
+  // Review real possession
+  // =========================
+
+  async function reviewPossession() {
+    if (!processingJobId) {
+      setError(
+        "Processing job is missing."
+      );
+
+      return;
+    }
+
+    const startTime =
+      Number(possessionStart);
+
+    const endTime =
+      Number(possessionEnd);
+
+    const passCount =
+      Number(possessionPassCount);
+
+    if (
+      Number.isNaN(startTime) ||
+      Number.isNaN(endTime)
+    ) {
+      setError(
+        "Enter valid start and end times."
+      );
+
+      return;
+    }
+
+    if (endTime <= startTime) {
+      setError(
+        "End time must be after start time."
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(passCount) ||
+      passCount < 0
+    ) {
+      setError(
+        "Pass count must be 0 or greater."
+      );
+
+      return;
+    }
+
+    setReviewingPossession(true);
+    setError(null);
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/api/v1/videos/jobs/${processingJobId}/possession-review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              start_time:
+                startTime,
+              end_time:
+                endTime,
+              result:
+                possessionResult,
+              pass_count:
+                passCount,
+            }),
+          }
+        );
+
+      if (!response.ok) {
+        const body =
+          await response.json();
+
+        throw new Error(
+          body.detail ??
+            `Possession review failed: ${response.status}`
+        );
+      }
+
+      const data =
+        await response.json();
+
+      setPossessionReview(
+        data
+      );
+
+      setAnalysis(
+        null
+      );
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(
+          err.message
+        );
+      }
+    } finally {
+      setReviewingPossession(
+        false
+      );
+    }
+  }
+
+
+  // =========================
+  // AI coaching from real evidence
   // =========================
 
   async function analyzePossession() {
+    if (!possessionReview) {
+      setError(
+        "Analyze a possession first."
+      );
+
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -724,38 +895,62 @@ export default function Home() {
             },
             body: JSON.stringify({
               possession_id:
-                "poss_001",
+                possessionReview
+                  .possession_id,
               team:
                 "team_a",
               start_time:
-                5.0,
+                possessionReview
+                  .start_time,
               end_time:
-                15.0,
+                possessionReview
+                  .end_time,
               duration_seconds:
-                10.0,
+                possessionReview
+                  .duration_seconds,
               result:
-                "missed_shot",
+                possessionReview
+                  .result,
               pass_count:
-                3,
+                possessionReview
+                  .pass_count,
               manually_segmented:
                 true,
               spacing: {
                 average_spacing_feet:
-                  14.8,
+                  possessionReview
+                    .average_spacing_feet,
                 minimum_spacing_feet:
-                  11.2,
+                  possessionReview
+                    .minimum_spacing_feet,
                 maximum_spacing_feet:
-                  18.4,
+                  possessionReview
+                    .maximum_spacing_feet,
                 spacing_sample_count:
-                  20,
+                  1,
               },
             }),
           }
         );
 
       if (!response.ok) {
+        let message =
+          `AI analysis failed: ${response.status}`;
+
+        try {
+          const body =
+            await response.json();
+
+          if (body.detail) {
+            message =
+              body.detail;
+          }
+        } catch {
+          // Keep fallback message.
+        }
+
         throw new Error(
-          `Request failed: ${response.status}`
+          message
         );
       }
 
@@ -1553,105 +1748,303 @@ export default function Home() {
 
 
       {/* ========================= */}
-      {/* 4. TEMPORARY POSSESSION */}
+      {/* 4. REAL POSSESSION REVIEW */}
       {/* ========================= */}
 
-      <section
-        style={{
-          border:
-            "1px solid #ddd",
-          borderRadius: "12px",
-          padding: "24px",
-          marginBottom: "24px",
-        }}
-      >
-        <h2>
-          Demo Possession
-        </h2>
-
-        <p
+      {analyticsData && (
+        <section
           style={{
-            color: "#888",
+            border:
+              "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "24px",
+            marginBottom: "24px",
           }}
         >
-          Temporary demo data. This
-          will be replaced by the
-          real possession workflow
-          in Session 24.
-        </p>
+          <h2>
+            Review Possession
+          </h2>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: "16px",
-            marginTop: "20px",
-          }}
-        >
-          <div>
-            <strong>
+          <p
+            style={{
+              color: "#888",
+            }}
+          >
+            Select a possession time
+            range from the uploaded
+            clip and confirm the
+            result.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "14px",
+              marginTop: "20px",
+            }}
+          >
+            <label>
+              Start time (seconds)
+
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={
+                  possessionStart
+                }
+                onChange={(event) =>
+                  setPossessionStart(
+                    event.target.value
+                  )
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "10px",
+                }}
+              />
+            </label>
+
+            <label>
+              End time (seconds)
+
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={
+                  possessionEnd
+                }
+                onChange={(event) =>
+                  setPossessionEnd(
+                    event.target.value
+                  )
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "10px",
+                }}
+              />
+            </label>
+
+            <label>
               Result
-            </strong>
 
-            <p>
-              Missed Shot
-            </p>
+              <select
+                value={
+                  possessionResult
+                }
+                onChange={(event) =>
+                  setPossessionResult(
+                    event.target.value
+                  )
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "10px",
+                }}
+              >
+                <option
+                  value="made_shot"
+                >
+                  Made shot
+                </option>
+
+                <option
+                  value="missed_shot"
+                >
+                  Missed shot
+                </option>
+
+                <option
+                  value="no_shot"
+                >
+                  No shot
+                </option>
+              </select>
+            </label>
+
+            <label>
+              Pass count
+
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={
+                  possessionPassCount
+                }
+                onChange={(event) =>
+                  setPossessionPassCount(
+                    event.target.value
+                  )
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "10px",
+                }}
+              />
+            </label>
           </div>
 
-          <div>
-            <strong>
-              Duration
-            </strong>
+          <button
+            onClick={
+              reviewPossession
+            }
+            disabled={
+              reviewingPossession
+            }
+            style={{
+              marginTop: "20px",
+              padding: "10px 18px",
+              fontWeight: "bold",
+              cursor:
+                reviewingPossession
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+          >
+            {reviewingPossession
+              ? "Analyzing Possession..."
+              : "Analyze Possession"}
+          </button>
 
-            <p>
-              10.0 sec
-            </p>
-          </div>
 
-          <div>
-            <strong>
-              Passes
-            </strong>
+          {possessionReview && (
+            <div
+              style={{
+                marginTop: "24px",
+                padding: "18px",
+                border:
+                  "1px solid #ddd",
+                borderRadius: "10px",
+              }}
+            >
+              <h3>
+                Possession Evidence
+              </h3>
 
-            <p>
-              3
-            </p>
-          </div>
+              <p>
+                <strong>
+                  Duration:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .duration_seconds
+                }{" "}
+                sec
+              </p>
 
-          <div>
-            <strong>
-              Avg. Spacing
-            </strong>
+              <p>
+                <strong>
+                  Result:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .result
+                }
+              </p>
 
-            <p>
-              14.8 ft
-            </p>
-          </div>
-        </div>
+              <p>
+                <strong>
+                  Passes:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .pass_count
+                }
+              </p>
 
-        <button
-          onClick={
-            analyzePossession
-          }
-          disabled={
-            loading
-          }
-          style={{
-            marginTop: "20px",
-            padding:
-              "10px 18px",
-            cursor:
-              loading
-                ? "not-allowed"
-                : "pointer",
-          }}
-        >
-          {loading
-            ? "Analyzing..."
-            : "Generate Demo AI Analysis"}
-        </button>
-      </section>
+              <p>
+                <strong>
+                  Average spacing:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .average_spacing_feet ??
+                  "Unavailable"
+                }
+                {possessionReview
+                  .average_spacing_feet !==
+                  null && " ft"}
+              </p>
+
+              <p>
+                <strong>
+                  Minimum spacing:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .minimum_spacing_feet ??
+                  "Unavailable"
+                }
+                {possessionReview
+                  .minimum_spacing_feet !==
+                  null && " ft"}
+              </p>
+
+              <p>
+                <strong>
+                  Maximum spacing:
+                </strong>{" "}
+                {
+                  possessionReview
+                    .maximum_spacing_feet ??
+                  "Unavailable"
+                }
+                {possessionReview
+                  .maximum_spacing_feet !==
+                  null && " ft"}
+              </p>
+
+              <button
+                onClick={
+                  analyzePossession
+                }
+                disabled={
+                  loading
+                }
+                style={{
+                  marginTop: "16px",
+                  padding: "10px 18px",
+                  fontWeight: "bold",
+                  cursor:
+                    loading
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {loading
+                  ? "Generating Coaching..."
+                  : "Generate AI Coaching"}
+              </button>
+
+              <p
+                style={{
+                  color: "#888",
+                  marginTop: "12px",
+                  marginBottom: 0,
+                }}
+              >
+                Coaching is generated
+                only from the reviewed
+                possession evidence
+                shown above.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
 
 
       {/* ========================= */}
@@ -1693,7 +2086,7 @@ export default function Home() {
           }}
         >
           <h2>
-            AI Possession Analysis
+            AI Coaching Report
           </h2>
 
           <div

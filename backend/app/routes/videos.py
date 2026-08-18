@@ -6,6 +6,15 @@ from fastapi import (
     UploadFile,
 )
 
+from app.schemas.possession import (
+    PossessionReviewRequest,
+    PossessionReviewResponse,
+)
+
+from app.services.job_possessions import (
+    build_reviewed_possession,
+)
+
 from fastapi.responses import (
     FileResponse,
 )
@@ -543,4 +552,67 @@ async def movement_heatmap(
             "Cache-Control":
                 "no-store",
         },
+    )
+
+@router.post(
+    "/jobs/{job_id}/possession-review",
+    response_model=(
+        PossessionReviewResponse
+    ),
+)
+async def review_possession(
+    job_id: str,
+    request:
+        PossessionReviewRequest,
+) -> PossessionReviewResponse:
+    try:
+        result = (
+            build_reviewed_possession(
+                job_id,
+                request.start_time,
+                request.end_time,
+                request.result,
+                request.pass_count,
+            )
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return (
+        PossessionReviewResponse(
+            possession_id=result[
+                "possession_id"
+            ],
+            start_time=result[
+                "start_time"
+            ],
+            end_time=result[
+                "end_time"
+            ],
+            duration_seconds=result[
+                "duration_seconds"
+            ],
+            result=result[
+                "result"
+            ],
+            pass_count=result[
+                "pass_count"
+            ],
+            average_spacing_feet=
+                result[
+                    "average_spacing_feet"
+                ],
+            minimum_spacing_feet=
+                result[
+                    "minimum_spacing_feet"
+                ],
+            maximum_spacing_feet=
+                result[
+                    "maximum_spacing_feet"
+                ],
+        )
     )
