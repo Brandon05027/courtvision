@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
@@ -26,12 +29,89 @@ export default function Home() {
 
   const [uploadedVideoId, setUploadedVideoId] =
     useState<string | null>(null);
+  const [processingJobId, setProcessingJobId] =
+    useState<string | null>(null);
+
+  const [processingStatus, setProcessingStatus] =
+    useState<string | null>(null);
+
+  const [processingStage, setProcessingStage] =
+    useState<string | null>(null);
+
+  const [processingProgress, setProcessingProgress] =
+    useState(0);
+
+  const [processingMessage, setProcessingMessage] =
+    useState<string | null>(null);
 
   const [loading, setLoading] =
     useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
+
+  useEffect(() => {
+  if (!processingJobId) {
+    return;
+  }
+
+  const interval =
+    window.setInterval(
+      async () => {
+        try {
+          const response =
+            await fetch(
+              `${API_URL}/api/v1/videos/jobs/${processingJobId}`
+            );
+
+          if (!response.ok) {
+            return;
+          }
+
+          const data =
+            await response.json();
+
+          setProcessingStatus(
+            data.status
+          );
+
+          setProcessingStage(
+            data.stage
+          );
+
+          setProcessingProgress(
+            data.progress
+          );
+
+          setProcessingMessage(
+            data.message
+          );
+
+          if (
+            data.status === "ready" ||
+            data.status === "completed" ||
+            data.status === "failed"
+          ) {
+            window.clearInterval(
+              interval
+            );
+          }
+
+        } catch {
+          // Polling can retry on
+          // the next interval.
+        }
+      },
+      1000
+    );
+
+  return () => {
+    window.clearInterval(
+      interval
+    );
+  };
+
+}, [processingJobId]);
 
   async function uploadVideo() {
   if (!videoFile) {
@@ -75,6 +155,9 @@ export default function Home() {
     setUploadedVideoId(
       data.video_id
     );
+    await startProcessing(
+      data.video_id
+    );
   } catch (err) {
     if (
       err instanceof Error
@@ -87,6 +170,61 @@ export default function Home() {
     setUploading(false);
   }
 }
+
+async function startProcessing(
+  videoId: string
+) {
+  try {
+    const response =
+      await fetch(
+        `${API_URL}/api/v1/videos/${videoId}/process`,
+        {
+          method: "POST",
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Could not start processing: ${response.status}`
+      );
+    }
+
+    const data =
+      await response.json();
+
+    setProcessingJobId(
+      data.job_id
+    );
+
+    setProcessingStatus(
+      data.status
+    );
+
+    setProcessingStage(
+      data.stage
+    );
+
+    setProcessingProgress(
+      data.progress
+    );
+
+    setProcessingMessage(
+      data.message
+    );
+
+    return data.job_id;
+
+  } catch (err) {
+    if (err instanceof Error) {
+      setError(
+        err.message
+      );
+    }
+
+    return null;
+  }
+}
+
   async function analyzePossession() {
     setLoading(true);
     setError(null);
@@ -333,6 +471,66 @@ export default function Home() {
               <p>
                 Video ID:{" "}
                 {uploadedVideoId}
+              </p>
+            </div>
+          )}
+          {processingJobId && (
+            <div
+              style={{
+                marginTop: "24px",
+                padding: "18px",
+                border: "1px solid #ddd",
+                borderRadius: "10px",
+              }}
+            >
+              <h3>
+                Processing Status
+              </h3>
+
+              <p>
+                <strong>Status:</strong>
+                {" "}
+                {processingStatus}
+              </p>
+
+              <p>
+                <strong>Stage:</strong>
+                {" "}
+                {processingStage}
+              </p>
+
+              <p>
+                {processingMessage}
+              </p>
+
+              <div
+                style={{
+                  width: "100%",
+                  height: "14px",
+                  background: "#ddd",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  marginTop: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    width:
+                      `${processingProgress}%`,
+                    height: "100%",
+                    background: "#444",
+                    transition:
+                      "width 0.3s ease",
+                  }}
+                />
+              </div>
+
+              <p
+                style={{
+                  marginTop: "8px",
+                }}
+              >
+                {processingProgress}%
               </p>
             </div>
           )}

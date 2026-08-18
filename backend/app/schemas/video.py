@@ -8,3 +8,14 @@ class VideoUploadResponse(
     original_filename: str
     size_bytes: int
     status: str
+
+class ProcessingJobResponse(
+    BaseModel
+):
+    job_id: str
+    video_id: str
+    status: str
+    stage: str
+    progress: int
+    message: str
+    error: str | None = None
