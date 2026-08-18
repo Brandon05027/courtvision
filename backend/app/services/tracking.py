@@ -5,9 +5,7 @@ from ultralytics import YOLO
 
 PERSON_CLASS_ID = 0
 
-# Analyze one frame out of every five.
-# 30 FPS video -> approximately 6 analyzed FPS.
-DEFAULT_FRAME_STRIDE = 5
+DEFAULT_FRAME_STRIDE = 10
 
 
 class PlayerTracker:
@@ -103,6 +101,7 @@ class PlayerTracker:
                 )
 
                 results = self.model.track(
+                    imgsz=416,
                     source=frame,
                     persist=True,
                     tracker="bytetrack.yaml",
