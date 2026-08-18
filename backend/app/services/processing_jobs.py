@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+import cv2
 
 from app.services.processing_results import (
+    get_calibration_frame_path,
     get_tracking_video_path,
     save_tracks,
-)
+)   
 
 from app.services.tracking import (
     PlayerTracker,
@@ -244,6 +246,37 @@ def run_computer_vision_job(
         tracks = result.get(
             "tracks",
             []
+        )
+
+        capture = cv2.VideoCapture(
+            str(video_path)
+        )
+
+        success, frame = capture.read()
+
+        capture.release()
+
+        if not success:
+            raise ValueError(
+                "Could not create "
+                "calibration frame."
+            )
+
+        calibration_frame_path = (
+            get_calibration_frame_path(
+                job_id
+            )
+        )
+
+        cv2.imwrite(
+            str(calibration_frame_path),
+            frame,
+        )
+
+        job[
+            "calibration_frame_path"
+        ] = str(
+            calibration_frame_path
         )
 
         if not tracks:
