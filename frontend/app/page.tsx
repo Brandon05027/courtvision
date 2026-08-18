@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
 type PossessionSummary = {
   summary: string;
@@ -15,20 +18,82 @@ export default function Home() {
   const [analysis, setAnalysis] =
     useState<PossessionSummary | null>(null);
 
+  const [videoFile, setVideoFile] =
+    useState<File | null>(null);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [uploadedVideoId, setUploadedVideoId] =
+    useState<string | null>(null);
+
   const [loading, setLoading] =
     useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
 
+  async function uploadVideo() {
+  if (!videoFile) {
+    setError(
+      "Please choose a video first."
+    );
 
+    return;
+  }
+
+  setUploading(true);
+  setError(null);
+
+  try {
+    const formData =
+      new FormData();
+
+    formData.append(
+      "video",
+      videoFile
+    );
+
+    const response =
+      await fetch(
+        `${API_URL}/api/v1/videos/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Upload failed: ${response.status}`
+      );
+    }
+
+    const data =
+      await response.json();
+
+    setUploadedVideoId(
+      data.video_id
+    );
+  } catch (err) {
+    if (
+      err instanceof Error
+    ) {
+      setError(
+        err.message
+      );
+    }
+  } finally {
+    setUploading(false);
+  }
+}
   async function analyzePossession() {
     setLoading(true);
     setError(null);
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/v1/possessions/summary",
+        `${API_URL}/api/v1/possessions/summary`,
         {
           method: "POST",
           headers: {
@@ -161,7 +226,117 @@ export default function Home() {
             : "Generate AI Analysis"}
         </button>
       </section>
+        <section
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "24px",
+            marginBottom: "24px",
+          }}
+        >
+          <h2>
+            Upload Basketball Clip
+          </h2>
 
+          <p>
+            Upload a short basketball
+            video for CourtVision analysis.
+          </p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                marginTop: "18px",
+              }}
+            >
+              <label
+                htmlFor="video-upload"
+                style={{
+                  display: "inline-block",
+                  width: "fit-content",
+                  padding: "12px 18px",
+                  borderRadius: "8px",
+                  border: "1px solid #aaa",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  background: "#111",
+                }}
+              >
+                Choose Basketball Video
+              </label>
+
+              <input
+                id="video-upload"
+                type="file"
+                accept=".mp4,.mov,.avi,.mkv"
+                onChange={(event) => {
+                  const file =
+                    event.target.files?.[0] ?? null;
+
+                  setVideoFile(file);
+                  setUploadedVideoId(null);
+                  setError(null);
+                }}
+                style={{
+                  display: "none",
+                }}
+              />
+
+              {videoFile ? (
+                <div>
+                  <strong>Selected video:</strong>
+                  <p>{videoFile.name}</p>
+                </div>
+              ) : (
+                <p
+                  style={{
+                    color: "#888",
+                    margin: 0,
+                  }}
+                >
+                  No video selected
+                </p>
+              )}
+
+              <button
+                onClick={uploadVideo}
+                disabled={uploading}
+                style={{
+                  width: "fit-content",
+                  padding: "12px 20px",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: uploading
+                    ? "not-allowed"
+                    : "pointer",
+                  fontWeight: "bold",
+                  fontSize: "16px",
+                }}
+              >
+                {uploading
+                  ? "Uploading..."
+                  : "Upload & Continue"}
+              </button>
+            </div>
+
+          {uploadedVideoId && (
+            <div
+              style={{
+                marginTop: "16px",
+              }}
+            >
+              <strong>
+                Upload successful
+              </strong>
+
+              <p>
+                Video ID:{" "}
+                {uploadedVideoId}
+              </p>
+            </div>
+          )}
+        </section>
       {error && (
         <section
           style={{

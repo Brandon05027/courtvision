@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.possessions import router as possessions_router
 
+from app.routes.videos import (
+    router as videos_router,
+)
+
 
 app = FastAPI()
 
@@ -33,6 +37,10 @@ app.add_middleware(
 
 app.include_router(
     possessions_router
+)
+
+app.include_router(
+    videos_router
 )
 
 
