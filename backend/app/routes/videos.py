@@ -14,7 +14,7 @@ from app.schemas.video import (
 from app.services.processing_jobs import (
     create_processing_job,
     get_processing_job,
-    prepare_video_job,
+    run_computer_vision_job,
 )
 
 from app.services.uploads import (
@@ -81,7 +81,7 @@ async def process_video(
         ) from exc
 
     background_tasks.add_task(
-        prepare_video_job,
+        run_computer_vision_job,
         job["job_id"],
     )
 
@@ -93,6 +93,12 @@ async def process_video(
         progress=job["progress"],
         message=job["message"],
         error=job["error"],
+        track_record_count=job.get(
+            "track_record_count"
+        ),
+        unique_track_count=job.get(
+            "unique_track_count"
+        ),
     )
 
 

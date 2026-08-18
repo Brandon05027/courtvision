@@ -19,3 +19,5 @@ class ProcessingJobResponse(
     progress: int
     message: str
     error: str | None = None
+    track_record_count: int | None = None
+    unique_track_count: int | None = None

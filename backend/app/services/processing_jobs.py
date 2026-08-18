@@ -2,6 +2,14 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.services.processing_results import (
+    get_tracking_video_path,
+    save_tracks,
+)
+
+from app.services.tracking import (
+    PlayerTracker,
+)
 
 UPLOAD_DIRECTORY = Path("uploads")
 
@@ -179,5 +187,123 @@ def prepare_video_job(
             status="failed",
             progress=0,
             message="Video preparation failed.",
+            error=str(exc),
+        )
+
+def run_computer_vision_job(
+    job_id: str,
+) -> None:
+    try:
+        job = get_processing_job(
+            job_id
+        )
+
+        video_path = Path(
+            job["video_path"]
+        )
+
+        if not video_path.exists():
+            raise ValueError(
+                "Uploaded video file is missing."
+            )
+
+        update_processing_job(
+            job_id,
+            status="processing",
+            stage="detection",
+            progress=50,
+            message=(
+                "Detecting players in "
+                "the uploaded video."
+            ),
+        )
+
+        tracker = PlayerTracker()
+
+        tracking_output_path = (
+            get_tracking_video_path(
+                job_id
+            )
+        )
+
+        update_processing_job(
+            job_id,
+            stage="tracking",
+            progress=60,
+            message=(
+                "Detecting and tracking "
+                "players across frames."
+            ),
+        )
+
+        result = tracker.track_video(
+            str(video_path),
+            str(tracking_output_path),
+        )
+
+        tracks = result.get(
+            "tracks",
+            []
+        )
+
+        if not tracks:
+            raise ValueError(
+                "No player tracks were produced."
+            )
+
+        tracks_path = save_tracks(
+            job_id,
+            tracks,
+        )
+
+        job[
+            "tracking_output_path"
+        ] = str(
+            tracking_output_path
+        )
+
+        job[
+            "tracks_path"
+        ] = tracks_path
+
+        job[
+            "track_record_count"
+        ] = len(
+            tracks
+        )
+
+        unique_track_ids = {
+            track["track_id"]
+            for track in tracks
+            if "track_id" in track
+        }
+
+        job[
+            "unique_track_count"
+        ] = len(
+            unique_track_ids
+        )
+
+        update_processing_job(
+            job_id,
+            status="review_required",
+            stage="calibration",
+            progress=70,
+            message=(
+                "Player tracking complete. "
+                "Court calibration is required "
+                "before analytics can continue."
+            ),
+        )
+
+    except Exception as exc:
+        update_processing_job(
+            job_id,
+            status="failed",
+            progress=0,
+            message=(
+                "Computer vision "
+                "processing failed."
+            ),
             error=str(exc),
         )

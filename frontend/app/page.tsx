@@ -50,6 +50,20 @@ export default function Home() {
   const [error, setError] =
     useState<string | null>(null);
 
+  const [
+    trackRecordCount,
+    setTrackRecordCount,
+    ] = useState<number | null>(
+      null
+    );
+
+  const [
+    uniqueTrackCount,
+    setUniqueTrackCount,
+    ] = useState<number | null>(
+      null
+    );
+
   useEffect(() => {
   if (!processingJobId) {
     return;
@@ -86,9 +100,17 @@ export default function Home() {
           setProcessingMessage(
             data.message
           );
+          
+          setTrackRecordCount(
+            data.track_record_count ?? null
+          );
+
+          setUniqueTrackCount(
+            data.unique_track_count ?? null
+          );
 
           if (
-            data.status === "ready" ||
+            data.status === "review_required" ||
             data.status === "completed" ||
             data.status === "failed"
           ) {
@@ -531,9 +553,50 @@ async function startProcessing(
                 }}
               >
                 {processingProgress}%
-              </p>
-            </div>
-          )}
+                  </p>
+                    </div>
+                        )}
+              {uniqueTrackCount !== null && (
+                <div
+                  style={{
+                    marginTop: "18px",
+                  }}
+                >
+                  <strong>
+                    Tracking Results
+                  </strong>
+
+                  <p>
+                    Unique track IDs:{" "}
+                    {uniqueTrackCount}
+                  </p>
+
+                  <p>
+                    Total tracking records:{" "}
+                    {trackRecordCount}
+                  </p>
+                </div>
+              )}
+              {processingStatus ===
+                "review_required" && (
+                <div
+                  style={{
+                    marginTop: "18px",
+                    padding: "14px",
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <strong>
+                    Player tracking complete
+                  </strong>
+
+                  <p>
+                    Next step: calibrate the
+                    basketball court.
+                  </p>
+                </div>
+              )}
         </section>
       {error && (
         <section
