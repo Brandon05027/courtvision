@@ -2,11 +2,16 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import cv2
+import json
+import subprocess
+
+RESULTS_DIRECTORY = Path("output/jobs")
 
 from app.services.processing_results import (
     get_calibration_frame_path,
     get_tracking_video_path,
     save_tracks,
+    create_web_tracking_video,
 )   
 
 from app.services.tracking import (
@@ -14,7 +19,9 @@ from app.services.tracking import (
 )
 
 UPLOAD_DIRECTORY = Path("uploads")
-
+JOB_RESULTS_DIRECTORY = Path(
+    "output/jobs"
+)
 
 JOBS: dict[str, dict] = {}
 
@@ -55,6 +62,62 @@ def find_uploaded_video(
 
     return matches[0]
 
+def get_job_metadata_path(
+    job_id: str,
+) -> Path:
+    directory = (
+        JOB_RESULTS_DIRECTORY
+        / job_id
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    return (
+        directory
+        / "job.json"
+    )
+
+
+def save_processing_job(
+    job: dict,
+) -> None:
+    path = get_job_metadata_path(
+        job["job_id"]
+    )
+
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            job,
+            file,
+            indent=2,
+        )
+
+
+def load_processing_job(
+    job_id: str,
+) -> dict:
+    path = get_job_metadata_path(
+        job_id
+    )
+
+    if not path.exists():
+        raise ValueError(
+            "Processing job was not found."
+        )
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        return json.load(
+            file
+        )
 
 def create_processing_job(
     video_id: str,
@@ -82,6 +145,10 @@ def create_processing_job(
 
     JOBS[job_id] = job
 
+    save_processing_job(
+        job
+    )
+
     return job
 
 
@@ -92,10 +159,16 @@ def get_processing_job(
         job_id
     )
 
-    if job is None:
-        raise ValueError(
-            "Processing job was not found."
-        )
+    if job is not None:
+        return job
+
+    job = load_processing_job(
+        job_id
+    )
+
+    JOBS[
+        job_id
+    ] = job
 
     return job
 
@@ -135,6 +208,10 @@ def update_processing_job(
         job["error"] = error
 
     job["updated_at"] = utc_now()
+
+    save_processing_job(
+        job
+    )
 
     return job
 
@@ -243,6 +320,9 @@ def run_computer_vision_job(
             str(tracking_output_path),
         )
 
+        create_web_tracking_video(
+            job_id
+        )
         tracks = result.get(
             "tracks",
             []
@@ -340,3 +420,108 @@ def run_computer_vision_job(
             ),
             error=str(exc),
         )
+
+def reset_job_to_calibration(
+    job_id: str,
+) -> dict:
+    job = get_processing_job(
+        job_id
+    )
+
+    job["status"] = (
+        "review_required"
+    )
+
+    job["stage"] = (
+        "calibration"
+    )
+
+    job["progress"] = 70
+
+    job["message"] = (
+        "Tracking complete. "
+        "Court calibration required."
+    )
+
+    job.pop(
+        "mapped_tracks_path",
+        None,
+    )
+
+    job.pop(
+        "mapped_track_count",
+        None,
+    )
+
+    job.pop(
+        "inside_court_count",
+        None,
+    )
+
+    save_processing_job(
+        job
+    )
+
+    return job
+
+def get_web_tracking_video_path(
+    job_id: str,
+):
+    directory = (
+        RESULTS_DIRECTORY /
+        job_id
+    )
+
+    return (
+        directory /
+        "tracked_video_web.mp4"
+    )
+
+
+def create_web_tracking_video(
+    job_id: str,
+):
+    source_path = (
+        get_tracking_video_path(
+            job_id
+        )
+    )
+
+    output_path = (
+        get_web_tracking_video_path(
+            job_id
+        )
+    )
+
+    if not source_path.exists():
+        raise ValueError(
+            "Tracked video was not found."
+        )
+
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(source_path),
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        raise ValueError(
+            "Could not create "
+            "browser-compatible video."
+        )
+
+    return output_path

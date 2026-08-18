@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
@@ -26,9 +27,32 @@ type CalibrationPoint = {
 };
 
 
+type AnalyticsData = {
+  unique_track_count: number;
+  mapped_record_count: number;
+  inside_court_record_count: number;
+  player_distances_feet: Record<
+    string,
+    number
+  >;
+};
+
+
 export default function Home() {
-  const [analysis, setAnalysis] =
-    useState<PossessionSummary | null>(
+  // =========================
+  // General
+  // =========================
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+
+  // =========================
+  // Video upload
+  // =========================
+
+  const videoInputRef =
+    useRef<HTMLInputElement | null>(
       null
     );
 
@@ -41,22 +65,35 @@ export default function Home() {
   const [
     uploadedVideoId,
     setUploadedVideoId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
+
+
+  // =========================
+  // Processing
+  // =========================
 
   const [
     processingJobId,
     setProcessingJobId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     processingStatus,
     setProcessingStatus,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     processingStage,
     setProcessingStage,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     processingProgress,
@@ -66,33 +103,28 @@ export default function Home() {
   const [
     processingMessage,
     setProcessingMessage,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     trackRecordCount,
     setTrackRecordCount,
-  ] = useState<number | null>(null);
+  ] = useState<number | null>(
+    null
+  );
 
   const [
     uniqueTrackCount,
     setUniqueTrackCount,
-  ] = useState<number | null>(null);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-  
-  const videoInputRef =
-  useRef<HTMLInputElement | null>(
+  ] = useState<number | null>(
     null
   );
 
 
-  // -------------------------
-  // Calibration state
-  // -------------------------
+  // =========================
+  // Calibration
+  // =========================
 
   const calibrationImageRef =
     useRef<HTMLImageElement | null>(
@@ -102,7 +134,9 @@ export default function Home() {
   const [
     calibrationPoints,
     setCalibrationPoints,
-  ] = useState<CalibrationPoint[]>([]);
+  ] = useState<CalibrationPoint[]>(
+    []
+  );
 
   const [
     calibrating,
@@ -117,17 +151,54 @@ export default function Home() {
   const [
     mappedTrackCount,
     setMappedTrackCount,
-  ] = useState<number | null>(null);
+  ] = useState<number | null>(
+    null
+  );
 
   const [
     insideCourtCount,
     setInsideCourtCount,
-  ] = useState<number | null>(null);
+  ] = useState<number | null>(
+    null
+  );
 
 
-  // -------------------------
-  // Poll processing job
-  // -------------------------
+  // =========================
+  // Analytics
+  // =========================
+
+  const [
+    analyticsLoading,
+    setAnalyticsLoading,
+  ] = useState(false);
+
+  const [
+    analyticsData,
+    setAnalyticsData,
+  ] = useState<AnalyticsData | null>(
+    null
+  );
+
+
+  // =========================
+  // Temporary possession demo
+  // =========================
+
+  const [
+    analysis,
+    setAnalysis,
+  ] =
+    useState<PossessionSummary | null>(
+      null
+    );
+
+  const [loading, setLoading] =
+    useState(false);
+
+
+  // =========================
+  // Poll processing status
+  // =========================
 
   useEffect(() => {
     if (!processingJobId) {
@@ -189,7 +260,7 @@ export default function Home() {
               );
             }
           } catch {
-            // Poll again next interval.
+            // Try again next poll.
           }
         },
         1000
@@ -203,9 +274,9 @@ export default function Home() {
   }, [processingJobId]);
 
 
-  // -------------------------
+  // =========================
   // Upload video
-  // -------------------------
+  // =========================
 
   async function uploadVideo() {
     if (!videoFile) {
@@ -219,13 +290,13 @@ export default function Home() {
     setUploading(true);
     setError(null);
 
-    // Reset old results
     setUploadedVideoId(null);
     setProcessingJobId(null);
     setProcessingStatus(null);
     setProcessingStage(null);
     setProcessingProgress(0);
     setProcessingMessage(null);
+
     setTrackRecordCount(null);
     setUniqueTrackCount(null);
 
@@ -233,6 +304,9 @@ export default function Home() {
     setCalibrationComplete(false);
     setMappedTrackCount(null);
     setInsideCourtCount(null);
+
+    setAnalyticsData(null);
+    setAnalysis(null);
 
     try {
       const formData =
@@ -265,6 +339,9 @@ export default function Home() {
         data.video_id
       );
 
+      // Upload is complete here.
+      setUploading(false);
+
       await startProcessing(
         data.video_id
       );
@@ -280,9 +357,9 @@ export default function Home() {
   }
 
 
-  // -------------------------
-  // Start CV processing
-  // -------------------------
+  // =========================
+  // Start processing
+  // =========================
 
   async function startProcessing(
     videoId: string
@@ -324,23 +401,19 @@ export default function Home() {
       setProcessingMessage(
         data.message
       );
-
-      return data.job_id;
     } catch (err) {
       if (err instanceof Error) {
         setError(
           err.message
         );
       }
-
-      return null;
     }
   }
 
 
-  // -------------------------
+  // =========================
   // Calibration click
-  // -------------------------
+  // =========================
 
   function handleCalibrationClick(
     event: MouseEvent<HTMLImageElement>
@@ -397,20 +470,75 @@ export default function Home() {
   }
 
 
-  function resetCalibration() {
-    setCalibrationPoints([]);
-    setCalibrationComplete(
-      false
-    );
-    setMappedTrackCount(null);
-    setInsideCourtCount(null);
+  // =========================
+  // Reset calibration
+  // =========================
+
+  async function resetCalibration() {
+    if (!processingJobId) {
+      return;
+    }
+
     setError(null);
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/api/v1/videos/jobs/${processingJobId}/reset-calibration`,
+          {
+            method: "POST",
+          }
+        );
+
+      if (!response.ok) {
+        const body =
+          await response.json();
+
+        throw new Error(
+          body.detail ??
+            "Could not reset calibration."
+        );
+      }
+
+      const data =
+        await response.json();
+
+      setCalibrationPoints([]);
+      setCalibrationComplete(false);
+
+      setMappedTrackCount(null);
+      setInsideCourtCount(null);
+
+      setAnalyticsData(null);
+
+      setProcessingStatus(
+        data.status
+      );
+
+      setProcessingStage(
+        data.stage
+      );
+
+      setProcessingProgress(
+        data.progress
+      );
+
+      setProcessingMessage(
+        data.message
+      );
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(
+          err.message
+        );
+      }
+    }
   }
 
 
-  // -------------------------
+  // =========================
   // Submit calibration
-  // -------------------------
+  // =========================
 
   async function submitCalibration() {
     if (
@@ -507,9 +635,78 @@ export default function Home() {
   }
 
 
-  // -------------------------
-  // Demo AI possession
-  // -------------------------
+  // =========================
+  // Analytics
+  // =========================
+
+  async function generateAnalytics() {
+    if (!processingJobId) {
+      setError(
+        "Processing job is missing."
+      );
+
+      return;
+    }
+
+    setAnalyticsLoading(true);
+    setError(null);
+
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/api/v1/videos/jobs/${processingJobId}/analytics`,
+          {
+            method: "POST",
+          }
+        );
+
+      if (!response.ok) {
+        const body =
+          await response.json();
+
+        throw new Error(
+          body.detail ??
+            `Analytics failed: ${response.status}`
+        );
+      }
+
+      const data =
+        await response.json();
+
+      setAnalyticsData(
+        data
+      );
+
+      setProcessingStatus(
+        "processing"
+      );
+
+      setProcessingStage(
+        "analytics"
+      );
+
+      setProcessingProgress(
+        90
+      );
+
+      setProcessingMessage(
+        "Movement analytics generated successfully."
+      );
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(
+          err.message
+        );
+      }
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
+
+
+  // =========================
+  // Temporary possession demo
+  // =========================
 
   async function analyzePossession() {
     setLoading(true);
@@ -528,13 +725,18 @@ export default function Home() {
             body: JSON.stringify({
               possession_id:
                 "poss_001",
-              team: "team_a",
-              start_time: 5.0,
-              end_time: 15.0,
-              duration_seconds: 10.0,
+              team:
+                "team_a",
+              start_time:
+                5.0,
+              end_time:
+                15.0,
+              duration_seconds:
+                10.0,
               result:
                 "missed_shot",
-              pass_count: 3,
+              pass_count:
+                3,
               manually_segmented:
                 true,
               spacing: {
@@ -561,7 +763,9 @@ export default function Home() {
         PossessionSummary =
           await response.json();
 
-      setAnalysis(data);
+      setAnalysis(
+        data
+      );
     } catch (err) {
       if (err instanceof Error) {
         setError(
@@ -609,14 +813,13 @@ export default function Home() {
       </p>
 
 
-      {/* ------------------ */}
-      {/* Video Upload */}
-      {/* ------------------ */}
+      {/* ========================= */}
+      {/* 1. VIDEO UPLOAD */}
+      {/* ========================= */}
 
       <section
         style={{
-          border:
-            "1px solid #ddd",
+          border: "1px solid #ddd",
           borderRadius: "12px",
           padding: "24px",
           marginBottom: "24px",
@@ -635,61 +838,59 @@ export default function Home() {
         <div
           style={{
             display: "flex",
-            flexDirection:
-              "column",
+            flexDirection: "column",
             gap: "14px",
             marginTop: "18px",
           }}
         >
-        <input
-          ref={videoInputRef}
-          type="file"
-          accept=".mp4,.mov,.avi,.mkv,video/*"
-          style={{
-            display: "none",
-          }}
-          onChange={(event) => {
-            const selectedFile =
-              event.currentTarget.files?.[0];
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept=".mp4,.mov,.avi,.mkv,video/*"
+            style={{
+              display: "none",
+            }}
+            onChange={(event) => {
+              const selectedFile =
+                event.currentTarget
+                  .files?.[0];
 
-            if (!selectedFile) {
-              return;
+              if (!selectedFile) {
+                return;
+              }
+
+              setVideoFile(
+                selectedFile
+              );
+
+              setUploadedVideoId(
+                null
+              );
+
+              setError(null);
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() =>
+              videoInputRef
+                .current
+                ?.click()
             }
-
-            console.log(
-              "Selected file:",
-              selectedFile.name
-            );
-
-            setVideoFile(
-              selectedFile
-            );
-
-            setUploadedVideoId(
-              null
-            );
-
-            setError(null);
-          }}
-        />
-
-        <button
-          type="button"
-          onClick={() => {
-            videoInputRef.current?.click();
-          }}
-          style={{
-            width: "fit-content",
-            padding: "12px 18px",
-            borderRadius: "8px",
-            border: "1px solid #aaa",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize: "16px",
-          }}
-        >
-          Choose Basketball Video
-        </button>
+            style={{
+              width: "fit-content",
+              padding: "12px 18px",
+              borderRadius: "8px",
+              border:
+                "1px solid #aaa",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "16px",
+            }}
+          >
+            Choose Basketball Video
+          </button>
 
           {videoFile ? (
             <div>
@@ -713,19 +914,12 @@ export default function Home() {
           )}
 
           <button
-            onClick={
-              uploadVideo
-            }
-            disabled={
-              uploading
-            }
+            onClick={uploadVideo}
+            disabled={uploading}
             style={{
-              width:
-                "fit-content",
-              padding:
-                "12px 20px",
-              borderRadius:
-                "8px",
+              width: "fit-content",
+              padding: "12px 20px",
+              borderRadius: "8px",
               border: "none",
               cursor:
                 uploading
@@ -742,8 +936,6 @@ export default function Home() {
         </div>
 
 
-        {/* Upload success */}
-
         {uploadedVideoId && (
           <div
             style={{
@@ -758,11 +950,16 @@ export default function Home() {
               Video ID:{" "}
               {uploadedVideoId}
             </p>
+
+            {processingJobId && (
+              <p>
+                Job ID:{" "}
+                {processingJobId}
+              </p>
+            )}
           </div>
         )}
 
-
-        {/* Processing Status */}
 
         {processingJobId && (
           <div
@@ -771,8 +968,7 @@ export default function Home() {
               padding: "18px",
               border:
                 "1px solid #ddd",
-              borderRadius:
-                "10px",
+              borderRadius: "10px",
             }}
           >
             <h3>
@@ -801,57 +997,55 @@ export default function Home() {
               style={{
                 width: "100%",
                 height: "14px",
-                background:
-                  "#ddd",
-                borderRadius:
-                  "8px",
-                overflow:
-                  "hidden",
-                marginTop:
-                  "12px",
+                background: "#ddd",
+                borderRadius: "8px",
+                overflow: "hidden",
+                marginTop: "12px",
               }}
             >
               <div
                 style={{
                   width:
                     `${processingProgress}%`,
-                  height:
-                    "100%",
-                  background:
-                    "#444",
+                  height: "100%",
+                  background: "#444",
                   transition:
                     "width 0.3s ease",
                 }}
               />
             </div>
 
-            <p
-              style={{
-                marginTop: "8px",
-              }}
-            >
+            <p>
               {processingProgress}%
             </p>
 
-            {uniqueTrackCount !==
-              null && (
-              <div
+            {processingStage ===
+              "tracking" && (
+              <p
                 style={{
-                  marginTop:
-                    "18px",
+                  color: "#888",
                 }}
               >
+                Player tracking can
+                take a few minutes
+                for longer clips.
+              </p>
+            )}
+
+            {uniqueTrackCount !==
+              null && (
+              <div>
                 <strong>
                   Tracking Results
                 </strong>
 
                 <p>
-                  Unique track IDs:{" "}
+                  Raw track IDs:{" "}
                   {uniqueTrackCount}
                 </p>
 
                 <p>
-                  Total tracking records:{" "}
+                  Tracking records:{" "}
                   {trackRecordCount}
                 </p>
               </div>
@@ -861,14 +1055,11 @@ export default function Home() {
               "review_required" && (
               <div
                 style={{
-                  marginTop:
-                    "18px",
-                  padding:
-                    "14px",
+                  marginTop: "18px",
+                  padding: "14px",
                   border:
                     "1px solid #ccc",
-                  borderRadius:
-                    "8px",
+                  borderRadius: "8px",
                 }}
               >
                 <strong>
@@ -888,22 +1079,23 @@ export default function Home() {
       </section>
 
 
-      {/* ------------------ */}
-      {/* Calibration */}
-      {/* ------------------ */}
+      {/* ========================= */}
+      {/* 2. CALIBRATION */}
+      {/* ========================= */}
 
       {processingJobId &&
-        processingStatus ===
-          "review_required" && (
+        (
+          processingStatus ===
+            "review_required" ||
+          calibrationComplete
+        ) && (
           <section
             style={{
               border:
                 "1px solid #ddd",
-              borderRadius:
-                "12px",
+              borderRadius: "12px",
               padding: "24px",
-              marginBottom:
-                "24px",
+              marginBottom: "24px",
             }}
           >
             <h2>
@@ -920,14 +1112,17 @@ export default function Home() {
               <li>
                 Top-left
               </li>
+
               <li>
                 Top-right
               </li>
-              <li>
-                Bottom-right
-              </li>
+
               <li>
                 Bottom-left
+              </li>
+
+              <li>
+                Bottom-right
               </li>
             </ol>
 
@@ -942,23 +1137,17 @@ export default function Home() {
               }
               style={{
                 width: "100%",
-                maxWidth:
-                  "800px",
-                cursor:
-                  "crosshair",
-                borderRadius:
-                  "8px",
-                marginTop:
-                  "20px",
-                display:
-                  "block",
+                maxWidth: "800px",
+                cursor: "crosshair",
+                borderRadius: "8px",
+                marginTop: "20px",
+                display: "block",
               }}
             />
 
             <div
               style={{
-                marginTop:
-                  "18px",
+                marginTop: "18px",
               }}
             >
               <strong>
@@ -990,11 +1179,9 @@ export default function Home() {
 
             <div
               style={{
-                display:
-                  "flex",
+                display: "flex",
                 gap: "12px",
-                marginTop:
-                  "18px",
+                marginTop: "18px",
               }}
             >
               <button
@@ -1039,17 +1226,15 @@ export default function Home() {
               </button>
             </div>
 
+
             {calibrationComplete && (
               <div
                 style={{
-                  marginTop:
-                    "20px",
-                  padding:
-                    "16px",
+                  marginTop: "20px",
+                  padding: "16px",
                   border:
                     "1px solid #ccc",
-                  borderRadius:
-                    "8px",
+                  borderRadius: "8px",
                 }}
               >
                 <strong>
@@ -1058,9 +1243,8 @@ export default function Home() {
                 </strong>
 
                 <p>
-                  Player positions
-                  were successfully
-                  mapped into
+                  Tracking positions
+                  were mapped into
                   basketball-court
                   coordinates.
                 </p>
@@ -1076,15 +1260,301 @@ export default function Home() {
                   court:{" "}
                   {insideCourtCount}
                 </p>
+
+                <button
+                  onClick={
+                    generateAnalytics
+                  }
+                  disabled={
+                    analyticsLoading
+                  }
+                  style={{
+                    marginTop: "16px",
+                    padding:
+                      "10px 18px",
+                    fontWeight: "bold",
+                    cursor:
+                      analyticsLoading
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {analyticsLoading
+                    ? "Generating Analytics..."
+                    : "Continue to Analytics"}
+                </button>
               </div>
             )}
           </section>
         )}
 
 
-      {/* ------------------ */}
-      {/* Temporary demo possession */}
-      {/* ------------------ */}
+      {/* ========================= */}
+      {/* 3. COURTVISION RESULTS */}
+      {/* ========================= */}
+
+      {analyticsData && (
+        <section
+          style={{
+            border:
+              "1px solid #ddd",
+            borderRadius: "12px",
+            padding: "24px",
+            marginBottom: "24px",
+          }}
+        >
+          <h2>
+            CourtVision Results
+          </h2>
+
+
+          {/* Summary */}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "16px",
+              marginTop: "20px",
+            }}
+          >
+            <div>
+              <strong>
+                Stable Tracking
+                Segments
+              </strong>
+
+              <p>
+                {
+                  analyticsData
+                    .unique_track_count
+                }
+              </p>
+            </div>
+
+            <div>
+              <strong>
+                Mapped Records
+              </strong>
+
+              <p>
+                {
+                  analyticsData
+                    .mapped_record_count
+                }
+              </p>
+            </div>
+
+            <div>
+              <strong>
+                Inside Court
+              </strong>
+
+              <p>
+                {
+                  analyticsData
+                    .inside_court_record_count
+                }
+              </p>
+            </div>
+          </div>
+
+
+          {/* Movement Heatmap */}
+
+          <div
+            style={{
+              marginTop: "32px",
+            }}
+          >
+            <h3>
+              Movement Heatmap
+            </h3>
+
+            <p
+              style={{
+                color: "#888",
+              }}
+            >
+              Tracking observations
+              mapped into
+              basketball-court
+              coordinates.
+            </p>
+
+            {processingJobId && (
+              <img
+                src={`${API_URL}/api/v1/videos/jobs/${processingJobId}/movement-heatmap`}
+                alt="CourtVision movement heatmap"
+                style={{
+                  width: "100%",
+                  maxWidth: "800px",
+                  marginTop: "14px",
+                  borderRadius: "10px",
+                  border:
+                    "1px solid #ddd",
+                  display: "block",
+                }}
+              />
+            )}
+          </div>
+
+
+          {/* Tracked Video */}
+
+          <div
+            style={{
+              marginTop: "32px",
+            }}
+          >
+            <h3>
+              Tracked Video
+            </h3>
+
+            <p
+              style={{
+                color: "#888",
+              }}
+            >
+              Computer-vision
+              tracking overlay for
+              the uploaded clip.
+            </p>
+
+            {processingJobId && (
+              <video
+                controls
+                src={`${API_URL}/api/v1/videos/jobs/${processingJobId}/tracked-video`}
+                style={{
+                  width: "100%",
+                  maxWidth: "800px",
+                  borderRadius: "10px",
+                  marginTop: "14px",
+                }}
+              >
+                Your browser does not
+                support video playback.
+              </video>
+            )}
+          </div>
+
+
+          {/* Top movement */}
+
+          <div
+            style={{
+              marginTop: "32px",
+            }}
+          >
+            <h3>
+              Top Movement Segments
+            </h3>
+
+            <p
+              style={{
+                color: "#888",
+              }}
+            >
+              Longest mapped movement
+              distances from stable
+              tracking segments.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gap: "10px",
+                marginTop: "14px",
+              }}
+            >
+              {Object.entries(
+                analyticsData
+                  .player_distances_feet
+              )
+                .sort(
+                  (
+                    [, distanceA],
+                    [, distanceB]
+                  ) =>
+                    distanceB -
+                    distanceA
+                )
+                .slice(0, 10)
+                .map(
+                  (
+                    [
+                      trackId,
+                      distance,
+                    ]
+                  ) => (
+                    <div
+                      key={
+                        trackId
+                      }
+                      style={{
+                        padding:
+                          "12px",
+                        border:
+                          "1px solid #ddd",
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
+                      <strong>
+                        Track{" "}
+                        {trackId}
+                      </strong>
+
+                      <p>
+                        Distance
+                        traveled:{" "}
+                        {distance.toFixed(
+                          1
+                        )}{" "}
+                        ft
+                      </p>
+                    </div>
+                  )
+                )}
+            </div>
+          </div>
+
+
+          <div
+            style={{
+              marginTop: "28px",
+              padding: "14px",
+              border:
+                "1px solid #ddd",
+              borderRadius: "8px",
+            }}
+          >
+            <strong>
+              Experimental Feature
+            </strong>
+
+            <p
+              style={{
+                marginBottom: 0,
+              }}
+            >
+              Jersey-color team
+              classification is
+              available in the
+              backend but is not
+              required for the
+              primary analytics
+              workflow.
+            </p>
+          </div>
+        </section>
+      )}
+
+
+      {/* ========================= */}
+      {/* 4. TEMPORARY POSSESSION */}
+      {/* ========================= */}
 
       <section
         style={{
@@ -1096,8 +1566,19 @@ export default function Home() {
         }}
       >
         <h2>
-          Possession 1
+          Demo Possession
         </h2>
+
+        <p
+          style={{
+            color: "#888",
+          }}
+        >
+          Temporary demo data. This
+          will be replaced by the
+          real possession workflow
+          in Session 24.
+        </p>
 
         <div
           style={{
@@ -1112,6 +1593,7 @@ export default function Home() {
             <strong>
               Result
             </strong>
+
             <p>
               Missed Shot
             </p>
@@ -1121,6 +1603,7 @@ export default function Home() {
             <strong>
               Duration
             </strong>
+
             <p>
               10.0 sec
             </p>
@@ -1130,13 +1613,17 @@ export default function Home() {
             <strong>
               Passes
             </strong>
-            <p>3</p>
+
+            <p>
+              3
+            </p>
           </div>
 
           <div>
             <strong>
               Avg. Spacing
             </strong>
+
             <p>
               14.8 ft
             </p>
@@ -1162,23 +1649,23 @@ export default function Home() {
         >
           {loading
             ? "Analyzing..."
-            : "Generate AI Analysis"}
+            : "Generate Demo AI Analysis"}
         </button>
       </section>
 
 
-      {/* Error */}
+      {/* ========================= */}
+      {/* ERROR */}
+      {/* ========================= */}
 
       {error && (
         <section
           style={{
             border:
               "1px solid #ccc",
-            borderRadius:
-              "12px",
+            borderRadius: "12px",
             padding: "20px",
-            marginBottom:
-              "24px",
+            marginBottom: "24px",
           }}
         >
           <strong>
@@ -1192,15 +1679,16 @@ export default function Home() {
       )}
 
 
-      {/* AI response */}
+      {/* ========================= */}
+      {/* AI RESPONSE */}
+      {/* ========================= */}
 
       {analysis && (
         <section
           style={{
             border:
               "1px solid #ddd",
-            borderRadius:
-              "12px",
+            borderRadius: "12px",
             padding: "24px",
           }}
         >
@@ -1210,8 +1698,7 @@ export default function Home() {
 
           <div
             style={{
-              marginTop:
-                "20px",
+              marginTop: "20px",
             }}
           >
             <strong>
@@ -1225,8 +1712,7 @@ export default function Home() {
 
           <div
             style={{
-              marginTop:
-                "20px",
+              marginTop: "20px",
             }}
           >
             <strong>
@@ -1240,8 +1726,7 @@ export default function Home() {
 
           <div
             style={{
-              marginTop:
-                "20px",
+              marginTop: "20px",
             }}
           >
             <strong>
@@ -1257,8 +1742,7 @@ export default function Home() {
 
           <div
             style={{
-              marginTop:
-                "20px",
+              marginTop: "20px",
             }}
           >
             <strong>
@@ -1266,17 +1750,19 @@ export default function Home() {
             </strong>
 
             <ul>
-              {analysis.evidence_keys.map(
-                (key) => (
-                  <li
-                    key={
-                      key
-                    }
-                  >
-                    {key}
-                  </li>
-                )
-              )}
+              {analysis
+                .evidence_keys
+                .map(
+                  (key) => (
+                    <li
+                      key={
+                        key
+                      }
+                    >
+                      {key}
+                    </li>
+                  )
+                )}
             </ul>
           </div>
         </section>

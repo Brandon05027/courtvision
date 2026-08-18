@@ -11,6 +11,126 @@ from matplotlib.patches import Arc, Circle, Rectangle #it will connect the point
 COURT_WIDTH = 50.0
 COURT_LENGTH = 47.0
 
+from app.services.processing_results import (
+    get_movement_heatmap_path,
+    load_mapped_tracks,
+)
+
+def save_job_movement_heatmap(
+    job_id: str,
+):
+    mapped_tracks = (
+        load_mapped_tracks(
+            job_id
+        )
+    )
+
+    x_positions = []
+    y_positions = []
+
+    for record in mapped_tracks:
+        if not record.get(
+            "inside_court",
+            False,
+        ):
+            continue
+
+        court_position = (
+            record.get(
+                "court_position"
+            )
+        )
+
+        if not court_position:
+            continue
+
+        x = court_position.get(
+            "x"
+        )
+
+        y = court_position.get(
+            "y"
+        )
+
+        if x is None or y is None:
+            continue
+
+        x_positions.append(
+            float(x)
+        )
+
+        y_positions.append(
+            float(y)
+        )
+
+    if not x_positions:
+        raise ValueError(
+            "No inside-court movement "
+            "positions were available."
+        )
+
+    output_path = (
+        get_movement_heatmap_path(
+            job_id
+        )
+    )
+
+    figure, axis = (
+        plt.subplots(
+            figsize=(10, 7)
+        )
+    )
+
+    heatmap = axis.hist2d(
+        x_positions,
+        y_positions,
+        bins=[
+            25,
+            24,
+        ],
+    )
+
+    axis.set_xlim(
+        0,
+        50,
+    )
+
+    axis.set_ylim(
+        47,
+        0,
+    )
+
+    axis.set_xlabel(
+        "Court X (feet)"
+    )
+
+    axis.set_ylabel(
+        "Court Y (feet)"
+    )
+
+    axis.set_title(
+        "CourtVision Movement Heatmap"
+    )
+
+    figure.colorbar(
+        heatmap[3],
+        ax=axis,
+        label="Tracking observations",
+    )
+
+    figure.tight_layout()
+
+    figure.savefig(
+        output_path,
+        dpi=150,
+        bbox_inches="tight",
+    )
+
+    plt.close(
+        figure
+    )
+
+    return output_path
 
 def draw_half_court(ax):
     ax.set_xlim(0, COURT_WIDTH)

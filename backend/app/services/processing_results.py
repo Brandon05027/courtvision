@@ -1,5 +1,5 @@
 import json
-
+import subprocess
 from pathlib import Path
 
 
@@ -38,6 +38,23 @@ def get_tracking_video_path(
         / "tracked_video.mp4"
     )
 
+def get_movement_heatmap_path(
+    job_id: str,
+) -> Path:
+    directory = (
+        RESULTS_DIRECTORY /
+        job_id
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    return (
+        directory /
+        "movement_heatmap.png"
+    )
 
 def get_tracks_path(
     job_id: str,
@@ -166,3 +183,127 @@ def load_mapped_tracks(
         encoding="utf-8",
     ) as file:
         return json.load(file)
+
+def get_analytics_path(
+    job_id: str,
+) -> Path:
+    output_directory = (
+        create_job_output_directory(
+            job_id
+        )
+    )
+
+    return (
+        output_directory
+        / "analytics.json"
+    )
+
+
+def save_analytics(
+    job_id: str,
+    analytics: dict,
+) -> str:
+    path = get_analytics_path(
+        job_id
+    )
+
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            analytics,
+            file,
+            indent=2,
+        )
+
+    return str(path)
+
+
+def load_analytics(
+    job_id: str,
+) -> dict:
+    path = get_analytics_path(
+        job_id
+    )
+
+    if not path.exists():
+        raise ValueError(
+            "Analytics results were not found."
+        )
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        return json.load(
+            file
+        )
+
+def get_web_tracking_video_path(
+    job_id: str,
+) -> Path:
+    directory = (
+        RESULTS_DIRECTORY /
+        job_id
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    return (
+        directory /
+        "tracked_video_web.mp4"
+    )
+
+
+def create_web_tracking_video(
+    job_id: str,
+) -> Path:
+    source_path = (
+        get_tracking_video_path(
+            job_id
+        )
+    )
+
+    output_path = (
+        get_web_tracking_video_path(
+            job_id
+        )
+    )
+
+    if not source_path.exists():
+        raise ValueError(
+            "Tracked video was not found."
+        )
+
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(source_path),
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        raise ValueError(
+            "Could not create "
+            "browser-compatible "
+            "tracked video."
+        )
+
+    return output_path
